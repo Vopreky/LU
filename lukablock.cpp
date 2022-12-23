@@ -21,19 +21,10 @@ void init_a(double * arr, int x, int y, int sz, double * block)
 
 void small_mult(double * A, double * B, double * res)
 {
-/*
-	cout << "mult small matrixes" << endl;
-	print(A,b);
-	cout << endl;
-	print(B,b);
-	cout << "|||||||||||||||||||||||||||||||||||||||||||||||||||||||" << endl;
-	cout << endl;
-	cout << endl;
-*/
 	for (int i = 0; i < b; i++)
 	for (int k = 0; k < b; k++)
 	{
-		res[i*b + k] = 0;
+		//res[i*b + k] = 0;
 		for (int j = 0; j < b; j++)
 		{
 			res[i*b + k] += A[j*b + k]*B[i*b + j];
@@ -153,7 +144,6 @@ void rec(MRX & A, MRX & L, MRX & U, int sa, int ca, int sl, int cl, int su, int 
 	else if (sz > b)
 	{
 		rec(A, L, U, sa, ca, sl, cl, su, cu, sz / 2);
-	//error is here	
 		for (int i = 0; i < sz/2 - 1; i++)
 		{
 			for (int k = i + 1; k < sz/2; k++)
@@ -203,32 +193,22 @@ void rec(MRX & A, MRX & L, MRX & U, int sa, int ca, int sl, int cl, int su, int 
 			for (int j = 0; j < b*b; j++)
 				block_l[j] = block_a[j];
 		}
-	//error is here	
 
-		MRX * l21u12 = mult(L,U, sl + sz / 2, cl, su, cu + sz / 2, sz / 2); 
-		//cout << "l21u12 = (" << sl << ", " << sz/2 << ")" << endl;
-		//l21u12->print();
-		//cout << endl;
-		//L.print();
-		//cout << endl;
-		//U.print();
-		//cout << endl;
+		MRX * l21u12 = mult(L,U, sl + sz / 2, cl, su, cu + sz / 2, sz / 2);
 		for (int i = 0; i < sz / 2 / b; i++)
 		for (int k = 0; k < sz / 2 / b; k++)
 		{
 			double * block_aa = A.GetBlock(sa/b + sz/2/b + i, ca/b + sz/2/b + k);
 			double * block_lu = l21u12->GetBlock(i,k);
-			for (int j = 0; j <= b*b; j++)
+			for (int j = 0; j < b*b; j++)
 			{
-				//cout << "aa " << block_aa[j] << endl;
-				//cout << "lu " << block_lu[j] << endl;
 				block_aa[j] -= block_lu[j];
 			}
 		}
 		delete l21u12;
 		rec(A, L, U, sa + sz/2, ca + sz/2, sl + sz/2, cl + sz/2, su + sz/2, cu + sz/2, sz/2);
 	}
-	else throw "What???";
+	else throw "Something's wrong with size!";
 }
 
 void LUkablock(MRX & A, MRX & L, MRX & U)
@@ -236,18 +216,40 @@ void LUkablock(MRX & A, MRX & L, MRX & U)
 	rec(A,L,U,0,0,0,0,0,0,A.size());
 }
 
+void test(MRX & L, MRX & U, MRX & A)
+{
+	int sz = L.size();
+	for (int i = 0; i < sz; i++)
+	for (int k = 0; k < sz; k++)
+	{
+		double a = 0;
+		for (int j = 0; j < sz; j++)
+			a += (*L.el(i,j)) * (*U.el(j,k));
+		if (abs(*(A.el(i,k)) - a) > 0.0001){
+			cout << "error on (" << i << ", " << k << ")" << endl;
+		}
+	}
+	cout << "OK" << endl;
+}
+
 int main(int argc, char ** argv)
 {
-	MRX m1(128*b,1), m2(128*b), m3(128*b);
+	const int c = 32;//can only be power of 2
+	MRX m1(c*b,1), m2(c*b), m3(c*b), A(c*b,1);
 
-	for (int i = 0; i < 128*b; i++)
+	for (int i = 0; i < c*b; i++)
+	{
 		*m1.el(i,i) = 2;
+		*A.el(i,i)  = 2;
+	}
 
     auto start = std::chrono::system_clock::now();
    	
 	try
 	{
 		LUkablock(m1,m2,m3);
+		//m2.print();
+		//m3.print();
 	}
 	catch (const char * s)
 	{
@@ -263,7 +265,8 @@ int main(int argc, char ** argv)
     std::cout << "finished computation at " << std::ctime(&end_time)
               << "elapsed time: " << elapsed_seconds.count() << "s"
               << std::endl;
-	
+	cout << "testing..." << endl;
+	test(m2,m3,A);
 }
 
 

@@ -49,16 +49,38 @@ SUBROUTINE luka(L, U, n)
 
 END SUBROUTINE luka
 IMPLICIT none
-!REAL, DIMENSION(4) :: A, B
+REAL d
 REAL A(0:3);
 REAL B(0:3);
-INTEGER :: n
-n = 2
+REAL C(0:3);
+INTEGER n,i,k,j;
+REAL val;
+val = 0;
+n = 2;
 B(0) = 1;
 B(1) = 2;
 B(2) = 3;
 B(3) = 4;
+C = B;
 CALL luka(A,B,n)
 print *, A
 print *, B
+i = 0;
+k = 0;
+do while (i < n)
+        do while (k < n)
+                j = 0;
+                d = 0;
+                do while (j < n)
+                        d = d + A(i*n + j) * B(j*n + k);
+                j = j + 1;
+                end do
+                if (abs(d - C(i*n + k)) > 0.001) then
+                        print *,"error i guess";
+                end if
+        k = k + 1;
+        end do
+i = i + 1;
+end do
+print *,"Ok?"
 end
