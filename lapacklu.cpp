@@ -1,9 +1,12 @@
 #include <iostream>
 #include <chrono>
 #include <ctime>
-#include <cblas.h>//BLAS!
 using namespace std;
 
+extern "C"
+{
+extern void dgemm_(const char *TRANSA, const char *TRANSB, const int *M, const int *N, const int *K, double *ALPHA, double *A, const int *LDA, double *B, const int *LDB, double *BETA, double *C, const int *LDC);
+}
 class Matrix
 {
 	double * arr;
@@ -51,16 +54,16 @@ public:
 	int col() {return col_count;}
 	void operator*=(Matrix & A)
 	{
-		//Тут BLAS		(!!!)
-		//			(!!!)
-		//			(!!!)
-		//			(!!!)
-		//			(!!!)
-		//			(!!!)
-		//			(!!!)
-		//Тут BLAS		(!!!)
 		double * C = new double[row_count * col_count];
-		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, row_count, A.col_count, col_count, 1, A.arr, col_count, arr, A.col_count, 0, C, A.col_count);
+		double alpha = 1;
+		double beta = 0;
+		
+		//Тут теперь Лапак		(!!!)
+		//				(!!!)
+		//				(!!!)
+		//				(!!!)
+		//Тут теперь Лапак		(!!!)
+		dgemm_("N", "N", &row_count, &A.col_count, &col_count, &alpha, arr, &col_count, A.arr, &A.col_count, &beta, C, &A.col_count);
 		for (int i = 0; i < row_count * col_count; i++)
 		{
 			arr[i] = C[i];
@@ -198,9 +201,9 @@ void LU(BigMrx & L, BigMrx & U)
 	U.Get(1,0).clear();
 	Matrix m(L.Get(1,0));
 	
-	//Вот тут использую blas, на этот раз с пользой			(!!!)
+	//Эта функция теперь на лапаке держится
 	m *= U.Get(0,1);
-	//Вот тут использую blas, на этот раз с пользой			(!!!)
+	//Эта функция теперь на лапаке держится
 	
 	U.Get(1,1) -= m;
 	LUka(L.Get(1,1), U.Get(1,1));
