@@ -219,6 +219,22 @@ void test(BigMrx & L, BigMrx & U, BigMrx & A)
 			cout << "error on (" << i << ", " << k << ")" << endl;
 		}
 	}
+	for (int i = 0; i < sz; i++)
+	for (int k = i + 1; k < sz; k++)
+	{
+		if (abs(*L.el(i,k)) > 0.0001){
+			cout << "non-zero in L on (" << i << ", " << k << ")" << endl;
+		}
+		if (abs(*U.el(k,i)) > 0.0001){
+			cout << "non-zero in L on (" << k << ", " << i << ")" << endl;
+		}
+	}
+	for (int i = 0; i < sz; i++)
+	{
+		if (*L.el(i,i) != 1){
+			cout << "non-one in L on (" << i << ", " << i << ")" << endl;
+		}
+	}
 	cout << "OK" << endl;
 }
 istream & operator>>(istream & is, BigMrx & M)
@@ -261,6 +277,7 @@ ostream & operator<<(ostream & os, BigMrx & M)
 int main()
 {
 	BigMrx L(2,2), U(2,2), A(2,2);
+	cout << "Ввод матрицы блоками 11 12 21 22" << endl;
 	cin >> U;
 	for (int i = 0; i < 2; i++)
 	for (int k = 0; k < 2; k++)

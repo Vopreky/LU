@@ -222,6 +222,22 @@ void test(BigMrx & L, BigMrx & U, BigMrx & A)
 			cout << "error on (" << i << ", " << k << ")" << endl;
 		}
 	}
+	for (int i = 0; i < sz; i++)
+	for (int k = i + 1; k < sz; k++)
+	{
+		if (abs(*L.el(i,k)) > 0.0001){
+			cout << "non-zero in L on (" << i << ", " << k << ")" << endl;
+		}
+		if (abs(*U.el(k,i)) > 0.0001){
+			cout << "non-zero in L on (" << k << ", " << i << ")" << endl;
+		}
+	}
+	for (int i = 0; i < sz; i++)
+	{
+		if (*L.el(i,i) != 1){
+			cout << "non-one in L on (" << i << ", " << i << ")" << endl;
+		}
+	}
 	cout << "OK" << endl;
 }
 istream & operator>>(istream & is, BigMrx & M)

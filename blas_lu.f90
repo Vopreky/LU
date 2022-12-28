@@ -1,27 +1,31 @@
+
 program main
 implicit none (type, external)
 external :: dgemm
 external :: dtrsm
-double precision   :: L11(2, 2)
-double precision   :: L12(2, 2)
-double precision   :: L21(2, 2)
-double precision   :: L22(2, 2)
+integer, parameter :: sz = 2
+double precision   :: L11(sz, sz)
+double precision   :: L12(sz, sz)
+double precision   :: L21(sz, sz)
+double precision   :: L22(sz, sz)
        
-double precision   :: U11(2, 2)
-double precision   :: U12(2, 2)
-double precision   :: U21(2, 2)
-double precision   :: U22(2, 2)
+double precision   :: U11(sz, sz)
+double precision   :: U12(sz, sz)
+double precision   :: U21(sz, sz)
+double precision   :: U22(sz, sz)
       
-double precision   :: A11(2, 2)
-double precision   :: A12(2, 2)
-double precision   :: A21(2, 2)
-double precision   :: A22(2, 2)
+double precision   :: A11(sz, sz)
+double precision   :: A12(sz, sz)
+double precision   :: A21(sz, sz)
+double precision   :: A22(sz, sz)
+
+double precision   :: mrx(sz,sz);
 
 double precision :: one;
 double precision :: two;
         
-double precision:: L(2,2)
-double precision:: U(2,2)
+double precision:: L(sz,sz)
+double precision:: U(sz,sz)
 integer :: i, j, k, n
 real :: ll
 one = 1;
@@ -57,7 +61,7 @@ U22 = A22;
 
 L = L11;
 U = U11;
-n = 2;
+n = sz;
         L = L * 0;
         i = 1;
         do while (i <= n)
@@ -87,23 +91,17 @@ U11 = U;
 !call dtrsm(side, uplo, trA, diag, m, n, alpha, A, LDA, B, LDB)
 U12 = A12;
 L21 = A21;
-call dtrsm('L', 'L', 'N', 'N', 2, 2, one, L11, 2, U12, 2);
-call dtrsm('R', 'U', 'N', 'N', 2, 2, one, U11, 2, L21, 2);
+call dtrsm('L', 'L', 'N', 'N', sz, sz, one, L11, sz, U12, sz);
+call dtrsm('R', 'U', 'N', 'N', sz, sz, one, U11, sz, L21, sz);
 
 ! Шаг 4 - вычисление L22, U22
 
 one = -1;
 two = 1;
-        print *,U22
-        print *,L21
-        print *,''
-call dgemm('N', 'N', 2, 2, 2, one, L21, 2, U12, 2, two, U22, 2)
-        print *,U22
-        print *,L21
-        print *,''
+call dgemm('N', 'N', sz, sz, sz, one, L21, sz, U12, sz, two, U22, sz)
 L = L22;
 U = U22;
-n = 2;
+n = sz;
 L = L * 0;
 i = 0;
 do while (i < n)
@@ -130,6 +128,43 @@ U22 = U;
 
 L12 = L12 * 0;
 u21 = u21 * 0;
+
+! проверка
+one = 1;
+two = 0;
+
+call dgemm('N','N',sz,sz,sz,one,L11,sz,U11,sz,two,mrx,sz);
+print *, (mrx == A11)
+
+call dgemm('N','N',sz,sz,sz,one,L11,sz,U12,sz,two,mrx,sz);
+print *, (mrx == A12)
+
+call dgemm('N','N',sz,sz,sz,one,L21,sz,U11,sz,two,mrx,sz);
+print *, (mrx == A21)
+
+call dgemm('N','N',sz,sz,sz,one,L21,sz,U12,sz,two,mrx,sz);
+two = 1;
+call dgemm('N','N',sz,sz,sz,one,L22,sz,U22,sz,two,mrx,sz);
+print *, (mrx == A22)
+
+print *,U21 == 0
+print *,L12 == 0
+
+i = 1;
+do while (i <= sz)
+       print *, L11(i,i) == 1;
+       print *, L22(i,i) == 1;
+       k = i + 1;
+       do while (k <= sz)
+                print *,L11(i,k) == 0;
+                print *,L22(i,k) == 0;
+                print *,U11(k,i) == 0;
+                print *,U22(k,i) == 0;
+        k = k + 1;
+       end do
+i = i + 1;
+end do
+print *,"Если все Т, то все верно"
 
 print *, A11
 print *, A12
