@@ -73,140 +73,116 @@ public:
 			arr[i] -= A.arr[i];
 	}
 };
-class BigMrx
+
+int LUka(Matrix & L, Matrix & U, int l1, int l2, int u1, int u2)
 {
-	Matrix A11;
-	Matrix A12;
-	Matrix A21;
-	Matrix A22;
-public:
-	BigMrx(int s, int c): A11(s,c), A12(s,c), A21(s,c), A22(s,c) {}
-	Matrix & Get(int i, int k)
-	{
-		if (i == 0 && k == 0)
-			return A11;
-		if (i == 0 && k == 1)
-			return A12;
-		if (i == 1 && k == 0)
-			return A21;
-		return A22;
-	}
-	double * el(int i, int k)
-	{
-		Matrix * m = 0;
-		if (i >= A11.row())
-		{
-			i -= A11.row();
-			if (k >= A11.col())
-			{
-				k -= A11.col();
-				m = &A22;
-			}
-			else
-			{
-				m = &A21;
-			}
-		}
-		else
-		{
-			if (k >= A11.col())
-			{
-				k -= A11.col();
-				m = &A12;
-			}
-			else
-			{
-				m = &A11;
-			}
-		}
-		return m->el(i,k);
-	}
-	int row()
-	{
-		return A11.row() * 2;
-	}
-	int col()
-	{
-		return A11.col() * 2;
-	}
-};
+//	cout << "LUKA_S" << endl;
 
-int LUka(Matrix & L, Matrix & U)
-{
-	if (L.row() != U.row() || L.col() != U.col() || U.col() != L.row()) return 1;
+	int b = L.row() / 2;
+//	cout << b << endl;
+//	cout << l1 << endl;
+//	cout << l2 << endl;
+//	cout << u1 << endl;
+//	cout << u2 << endl;
+//	cout << "LUKA_1" << endl;
 
-	for (int i = 0; i < L.col(); i++)
-	for (int k = 0; k < L.col(); k++)
-		*L.el(i,k) = 0;
+	for (int i = 0; i < b; i++)
+	for (int k = 0; k < b; k++)
+		*L.el(i + b * l1, k + b * l2) = 0;
+//	cout << "LUKA_2" << endl;
 
-	for (int i = 0; i < U.col(); i++) *L.el(i,i) = 1;
+	for (int i = 0; i < b; i++) *L.el(i + b * l1, i + b * l2) = 1;
+//	cout << "LUKA_3" << endl;
 	
-	for (int i = 0; i < U.col(); i++)
+	for (int i = 0; i < b; i++)
 	{
-		if (abs(*U.el(i,i)) < 0.0001) return 1;
-		for (int k = i + 1; k < U.col(); k++)
+		//if (abs(*U.el(i + b * u1,i + b * u2)) < 0.0001) return 1;
+		for (int k = i + 1; k < b; k++)
 		{
-			double l = *U.el(k,i) / *U.el(i,i);
-			*L.el(k,i) = l;
-			for (int j = 0; j < U.col(); j++)
+			double l = *U.el(k + b * u1, i + b * u2) / *U.el(i + b * u1, i + b * u2);
+			*L.el(k + b * l1, i + b * l2) = l;
+			for (int j = 0; j < b; j++)
 			{
-				*U.el(k,j) -= *U.el(i,j) * l;
+				*U.el(k + b * u1, j + b * u2) -= *U.el(i + b * u1, j + b * u2) * l;
 			}
 		}
-		if (abs(*U.el(i,i)) < 0.0001) return 1;
+		//if (abs(*U.el(i + b * u1, i + b * u2)) < 0.0001) return 1;
 	}
+//	cout << "LUKA_E" << endl;
 	return 0;
 }
 
-void LU(BigMrx & L, BigMrx & U)
+void LU(Matrix & L, Matrix & U)
 {
-	LUka(L.Get(0,0), U.Get(0,0));
-	L.Get(0,1).clear();
-	Matrix & u12 = U.Get(0,1);
-	Matrix & l11 = L.Get(0,0);
-	for(int i = 0; i < l11.col(); i++)
+	int b = L.row() / 2;
+	U.clear();
+	L.clear();
+	//L.Get(0,1).clear();
+	LUka(L,U,0,0,0,0);//LUka(L.Get(0,0), U.Get(0,0));
+	for(int i = 0; i < b; i++)
 	{
-		for (int k = i + 1; k < l11.row(); k++)
+		for (int k = i + 1; k < b; k++)
 		{
-			double l = *l11.el(k,i);
-			for (int j = 0; j < u12.col(); j++)
+			double l = *L.el(k,i);//double l = *l11.el(k,i);
+			for (int j = 0; j < b; j++)
 			{
-				*u12.el(k,j) -= *u12.el(i,j) * l;
+				*U.el(k,j + b) -= *U.el(i,j + b) * l;//*u12.el(k,j) -= *u12.el(i,j) * l;
 			}
 		}
 	}
-	Matrix & l21 = L.Get(1,0);
-	Matrix & u11 = U.Get(0,0);
-	l21.load(U.Get(1,0));
-	for (int i = 0; i < u11.row(); i++)
+	//Matrix & l21 = L.Get(1,0);
+	//Matrix & u11 = U.Get(0,0);
+	//l21.load(U.Get(1,0));
+	for (int i = 0; i < b; i++)
 	{
-		for (int k = i + 1; k < u11.col(); k++)
+		for (int j = 0; j < b; j++){
+			*L.el(i + b,j) = *U.el(i + b,j);
+		}
+	}
+	for (int i = 0; i < b; i++)
+	{
+		for (int k = i + 1; k < b; k++)
 		{
-			double l = *u11.el(i,k) / *u11.el(i,i);
-			for (int j = 0; j < l21.row(); j++)
+			double l = *U.el(i,k) / *U.el(i,i);
+			for (int j = 0; j < b; j++)
 			{
-				*l21.el(j,k) -= *l21.el(j,i) * l;
+				*L.el(j + b,k) -= *L.el(j + b,i) * l;//*l21.el(j,k) -= *l21.el(j,i) * l;
 			}
 		}
 
-		for (int j = 0; j < l21.row(); j++)
+		for (int j = 0; j < b; j++)
 		{
-			*l21.el(j,i) /= *u11.el(i,i);
+			*L.el(j + b,i) /= *U.el(i,i);//*l21.el(j,i) /= *u11.el(i,i);
 		}
 	}
 
-	U.Get(1,0).clear();
-	Matrix m(L.Get(1,0));
-	
+	//U.Get(1,0).clear();
+	//Matrix m(L.Get(1,0));
+	Matrix m(b,b), m1(b,b);
+	for (int i = 0; i < b; i++)
+	{
+		for (int j = 0; j < b; j++)
+		{
+			*m.el(i,j) = *L.el(i + b,j);
+			*m1.el(i,j) = *U.el(i,j + b);
+		}
+	}
 	//Вот тут использую blas, на этот раз с пользой			(!!!)
-	m *= U.Get(0,1);
+	//m *= U.Get(0,1);
+	m *= m1;
 	//Вот тут использую blas, на этот раз с пользой			(!!!)
 	
-	U.Get(1,1) -= m;
-	LUka(L.Get(1,1), U.Get(1,1));
+	for (int i = 0; i < b; i++)
+	{
+		for (int j = 0; j < b; j++)
+		{
+			*U.el(i + b,j + b) -= *m.el(i,j);//U.Get(1,1) -= m;
+		}
+	}
+	LUka(L,U,1,1,1,1);//LUka(L.Get(1,1), U.Get(1,1));
 }
 
-void test(BigMrx & L, BigMrx & U, BigMrx & A)
+void test(Matrix & L, Matrix & U, Matrix & A)
 {
 	int sz = L.row();
 	for (int i = 0; i < sz; i++)
@@ -237,56 +213,50 @@ void test(BigMrx & L, BigMrx & U, BigMrx & A)
 	}
 	cout << "OK" << endl;
 }
-istream & operator>>(istream & is, BigMrx & M)
+istream & operator>>(istream & is, Matrix & M)
 {
-	for (int j1 = 0; j1 < 2; j1++)
-	for (int j2 = 0; j2 < 2; j2++)
+	for (int i = 0; i < M.row(); i++)
 	{
-		Matrix & m = M.Get(j1,j2);
-		for (int i = 0; i < m.row(); i++)
+		for (int k = 0; k < M.col(); k++)
 		{
-			for (int k = 0; k < m.col(); k++)
-			{
-				is >> *m.el(i,k);
-			}
+			is >> *M.el(i,k);
 		}
 	}
 	return is;
 }
 
-ostream & operator<<(ostream & os, BigMrx & M)
+ostream & operator<<(ostream & os, Matrix & m)
 {
-	for (int j1 = 0; j1 < 2; j1++)
-	for (int j2 = 0; j2 < 2; j2++)
+	os << endl;
+	for (int i = 0; i < m.row(); i++)
 	{
-		os << endl;
-		os << "Block(" << j1 << ", "<< j2 << ")" << endl;
-		Matrix & m = M.Get(j1,j2);
-		for (int i = 0; i < m.row(); i++)
+		for (int k = 0; k < m.col(); k++)
 		{
-			for (int k = 0; k < m.col(); k++)
-			{
-				os << *m.el(i,k) << ' ';
-			}
-			os << endl;
+			os << *m.el(i,k) << ' ';
 		}
+		os << endl;
 	}
 	return os;
 }
 
 int main()
 {
-	BigMrx L(2,2), U(2,2), A(2,2);
-	cout << "Ввод матрицы блоками 11 12 21 22" << endl;
+	const int b = 4;
+	Matrix L(b,b), U(b,b), A(b,b);
+	//cout << "Ввод матрицы блоками 11 12 21 22" << endl;
 	cin >> U;
+	/*
+	for(int i = 0; i < b*2; i++)
+		*U.el(i,i) = 1;
 	for (int i = 0; i < 2; i++)
 	for (int k = 0; k < 2; k++)
 	A.Get(i,k).load(U.Get(i,k));
+	*/
     auto start = std::chrono::system_clock::now();
 	LU(L,U);
     auto end = std::chrono::system_clock::now();
-	cout << "L:\n" << L << endl;
-	cout << "U:\n" << U << endl;
+	//cout << "L:\n" << L << endl;
+	//cout << "U:\n" << U << endl;
    	
 
 
