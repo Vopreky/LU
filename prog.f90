@@ -117,11 +117,47 @@ subroutine LU(L,U,A)
         end do
 
         end subroutine
+
+subroutine check(A,L,U)
+        external :: dgemm
+        integer, parameter :: sz = 2
+        double precision :: L(1:sz * 2, 1:sz * 2)
+        double precision :: U(1:sz * 2, 1:sz * 2)
+        double precision :: A(1:sz * 2, 1:sz * 2)
+        double precision :: C(1:sz * 2, 1:sz * 2)
+        double precision ALPHA, BETA
+        integer M, K, N, I, J;
+        integer :: row = 0
+        integer :: col = 0
+        M = sz*2;
+        K = sz*2;
+        N = sz*2;
+        I = sz*2;
+        J = sz*2;
+        alpha = 1;
+        beta = 0;
+        C = C * 0;
+        call dgemm('N','N',M,N,K,ALPHA,L,M,U,K,BETA,C,M)
+        
+        do i = 1, sz*2
+        do j = 1, sz*2
+                if ((A(i,j) - C(i,j))*(A(i,j) - C(i,j)) > 0.001) print *,"error";
+                if ((L(i,j) * (L(i,j)) > 0.001) .and. (i < j)) print *,"error";
+                if ((U(i,j) * (U(i,j)) > 0.001) .and. (i > j)) print *,"error";
+        end do
+        end do
+        
+        do i = 1, sz*2
+                if ((L(i,i) - 1) * (L(i,i) - 1) > 0.001) print *,"error";
+        end do
+
+        end subroutine
 program main
         integer, parameter :: sz = 2
         double precision :: L(1:sz * 2, 1:sz * 2)
         double precision :: U(1:sz * 2, 1:sz * 2)
         double precision :: A(1:sz * 2, 1:sz * 2)
+        double precision :: A_COPY(1:sz * 2, 1:sz * 2)
         integer :: row = 0
         integer :: col = 0
         A = 1
@@ -132,6 +168,7 @@ program main
         write(*,*) (A(row,col),col=1,sz*2)
         enddo
         print *, ""
+        A_COPY = A;
         call LU(L,U,A)
 
         do row=1, sz*2
@@ -141,4 +178,6 @@ program main
         do row=1, sz*2
         write(*,*) (U(row,col),col=1,sz*2)
         enddo
+
+        call check(A_COPY,L,U);
         end program
