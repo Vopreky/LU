@@ -5,7 +5,7 @@ using namespace std;
 
 extern "C"
 {
-extern void dgeev_(const char*, const char*, int, double *, int, double *, double *, double *, int, double *, int, int *);
+extern void dgeev_(const char*, const char*, int*, double *, int*, double *, double *, double *, int*, double *, int*, int *);
 }
 
 class mrx{
@@ -158,8 +158,9 @@ void lanc(const mrx & A, int maxK = 10){
 	double * arr2 = new double[k*k];
 	double * arr3 = new double[k*k];
 	double * arr4 = new double[k*k];
+	int zero = 0;
 	int info;
-	dgeev_("N", "N", k, T.arr, k, arr1, arr2, arr3, 0, arr4, 0, &info);
+	dgeev_("N", "N", &k, T.arr, &k, arr1, arr2, arr3, &zero, arr4, &zero, &info);
 	cout << "info = " << info << endl;
 	for (int i = 0; i < k; i++){
 		cout << arr1[i] << " + i * " << arr2[i] << endl;
