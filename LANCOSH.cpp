@@ -5,148 +5,108 @@ using namespace std;
 
 extern "C"
 {
-//extern void dgeev_(const char*, const char*, int*, double *, int*, double *, double *, double *, int*, double *, int*, int *);
-extern void dgeev_(const char*, //1
-		const char*, //2
-		int*, //3
-		double *, //4
-		int*, //5
-		double *, //6
-		double *, //7
-		double *, //8
-		int*, //9
-		double *, //10
-		int *, //11
-	       	double *, //12
-       		int *, //13
-		int *); //14
+extern void dgemm_(const char* transa,
+		const char * transb,
+		int * m,
+		int * n,
+		int * k,
+		double * alpha,
+		double * A,
+		int * lda,
+		double * B,
+		int * ldb,
+		double * beta,
+		double * C,
+		int * ldc);
+extern void dstevd_(const char * jobz,
+		int * n,
+		double * d,
+		double * e,
+		double * z,
+		int * ldz,
+		double * work,
+		int * lwork,
+		int * iwork,
+		int * liwork,
+		int * info);
 }
 
-class mrx{
-public:
-	double * arr;
-	int s,c;
-	mrx(int s, int c = 1){
-		arr = new double[s*c];
-		this->s = s;
-		this->c = c;
+double norma(double * v, int n){
+	double a = 0;
+	for (int i = 0; i < n; i++){
+		a += v[i]*v[i];
 	}
-	mrx(const mrx & m){
-		c = m.c;
-		s = m.s;
-		arr = new double[s*c];
-		for (int i = 0; i < s * c; i++)
-			arr[i] = m.arr[i];
-	}
-	const mrx operator*(double a) const{
-		mrx res(s,c);
-		for (int i = 0; i < s*c; i++)
-			res.arr[i] = arr[i] * a;
-		return res;
-	}
-	const mrx operator/(double a) const{
-		return (*this) * (1/a);
-	}
-	const mrx & operator=(const mrx & m){
-		delete[] arr;
-		c = m.c;
-		s = m.s;
-		arr = new double[s*c];
-		for (int i = 0; i < s * c; i++)
-			arr[i] = m.arr[i];
-		return *this;
-	}
-	const mrx operator*(const mrx & m) const{
-		if (c != m.s)
-			throw "ET1";
-		mrx res(s,m.c);
-		for (int i = 0; i < s; i++){
-			for (int j = 0; j < m.c; j++){
-				for (int k = 0; k < c; k++){
-					res.arr[i * res.c + j] += arr[i * c + k] * m.arr[k * m.c + j];
-				}
-			}
-		}
-		return res;
-	}
-	const mrx operator+(const mrx & m) const{
-		if (c != m.c)
-			throw "ET2";
-		if (s != m.s)
-			throw "ET3";
-		mrx res(s,c);
-		for (int i = 0; i < s * c; i++)
-			res.arr[i] = arr[i] + m.arr[i];
-		return res;
-	}
-	const mrx operator-(const mrx & m) const{
-		if (c != m.c)
-			throw "ET2";
-		if (s != m.s)
-			throw "ET3";
-		mrx res(s,c);
-		for (int i = 0; i < s * c; i++)
-			res.arr[i] = arr[i] - m.arr[i];
-		return res;
-	}
-	~mrx(){
-		delete[] arr;
-	}
-	void print() const{
-		for (int i = 0; i < s; i++){
-			for (int j = 0; j < c; j++){
-				cout << arr[i * c + j] << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-	double get(int i = 0, int j = 0) const{
-		return arr[i * c + j];
-	}
-	void set(double a, int i = 0, int j = 0){
-		arr[i * c + j] = a;
-	}
-	const mrx T() const{
-		mrx res(c,s);
-		for (int i = 0; i < s; i++)
-		for (int j = 0; j < c; j++)
-			res.set(get(i,j),j,i);
-		return res;
-	}
-};
-double norma(const mrx & v){
-	mrx a = v.T() * v;
-	return sqrt(a.get());
+	return sqrt(a);
 }
 
-void lanc(const mrx & A, int maxK = 10){
+inline void sum(double * a, double * b, double * c, int n){
+	for (int i = 0; i < n; i++)
+		c[i] = a[i] + b[i];
+}
+inline void mult(double * a, double b, double * c, int n){
+	for (int i = 0; i < n; i++)
+		c[i] = a[i] * b;
+}
+inline void load(double * a, double * c, int n){
+	for (int i = 0; i < n; i++)
+		c[i] = a[i];
+}
+inline void nullify(double * a, int n){
+	for (int i = 0; i < n; i++)
+		a[i] = 0;
+}
+//A - matrix we work with
+//n - sz of A dims
+//matvec -> if (revFlag) {y = Ax y - (n, 1) x - (m, 1)} 
+//		    else {y = xA y - (1, m) x - (1, n)} 
+//		    A - (n, m)
+void lanc(double * A, int n, void(*matvec) (double * A, double * x, double * y, int n, int m, bool revFlag), int maxK = 10){
+	double * workArray = new double[n];
 	double b;
-	vector<mrx> sys;
+	vector<double*> sys;//vector<mrx> sys;
 	vector<double> aArray;
 	vector<double> bArray;
-	mrx q(A.s);
+	double * q = new double[n];//mrx q(A.s);
+	nullify(q,n);
 
-	q.set(1);
+	q[0] = 1;//q.set(1);
 	sys.push_back(q);
-	double a = -((q.T() * A * q).get());
+	q = new double[n];
+	load(sys[0], q, n);
+	matvec(A, q, workArray, n, n, true);
+	matvec(workArray, q, workArray, 1, n, false);
+	double a = -workArray[0];//double a = -((q.T() * A * q).get());
 	aArray.push_back(a);
-	q = A * q + q * a;
+	matvec(A, q, workArray, n, n, false);
+	mult(q, a, q, n);
+	sum(workArray, q, q, n);
+	//q = A * q + q * a;
 	int k = 1;
-	while (norma(q) > 0.001 && k < maxK){
-		q = q / norma(q);
+	while (norma(q, n) > 0.001 && k < maxK){
+		mult(q, 1 / norma(q, n), q, n);
+		//q = q / norma(q);
 		sys.push_back(q);
+		q = new double[n];
 		k++;
-		a = -((sys[k-1].T() * A * sys[k-1]).get());
-		b = -((sys[k-1].T() * A * sys[k-2]).get());
+		matvec(A, sys[k-1], workArray, n, n, true);
+		matvec(workArray, sys[k-1], workArray, 1, n, false);
+		a = -workArray[0];//-((sys[k-1].T() * A * sys[k-1]).get());
+		matvec(A, sys[k-1], workArray, n, n, true);
+		matvec(workArray, sys[k-2], workArray, 1, n, false);
+		b = -workArray[0];//-((sys[k-1].T() * A * sys[k-2]).get());
 		aArray.push_back(a);
 		bArray.push_back(b);
-		q = A * sys[k-1] + sys[k-1] * a + sys[k-2] * b;
+		matvec(A, sys[k-1], q, n, n, false);
+		mult(sys[k-1], a, workArray, n);
+		sum(q, workArray, q, n);
+		mult(sys[k-2], b, workArray, n);
+		sum(q, workArray, q, n);
+		//q = A * sys[k-1] + sys[k-1] * a + sys[k-2] * b;
 	}
 	cout << "k = " << k << endl;
-	for (int i = 0; i < A.s; i++){
+	for (int i = 0; i < n; i++){
 		for (int j = 0; j < k; j++){
-			cout << sys[j].get(i) << " ";
+			cout << sys[j][i] << " ";
 		}
 		cout << endl;
 	}
@@ -159,54 +119,59 @@ void lanc(const mrx & A, int maxK = 10){
 		cout << *p << " ";
 	}
 	cout << endl;
-	mrx T(k,k);
+	double * mid = new double[k];
+	double * bot = new double[k - 1];
 	for (int i = 0; i < k; i++){
-		T.set(-aArray[i],i,i);
+		mid[i] = -aArray[i];
 	}
 	for (int i = 0; i < k - 1; i++){
-		T.set(-bArray[i],i + 1, i);
-		T.set(-bArray[i],i, i + 1);
+		bot[i] = -bArray[i];
 	}
-	T.print();
 	double * arr1 = new double[k];
-	double * arr2 = new double[k];
-	double * arr3 = new double[k*k];
-	double * arr4 = new double[k*k];
-	double * arr5 = new double[4*k];
+	int * arr2 = new int[k];
 	int k2 = 4*k;
 	int info;
-	dgeev_("N", "N", &k, T.arr, &k, arr1, arr2, arr3, &k, arr4, &k, arr5, &k2, &info);
+	int one = 1;
+	dstevd_("N", &k, mid, bot, 0, &one, arr1, &k, arr2, &k, &info);
+	//dgeev_("N", "N", &k, T, &k, arr1, arr2, arr3, &k, arr4, &k, arr5, &k2, &info);
 	cout << "info = " << info << endl;
+	cout << "result:" << endl;
 	for (int i = 0; i < k; i++){
-		cout << arr1[i] << " + i * " << arr2[i] << endl;
+		cout << mid[i] << endl;
 	}
 
 delete[] arr1;
 delete[] arr2;
-delete[] arr3;
-delete[] arr4;
-delete[] arr5;
+delete[] q;
+delete[] workArray;
+delete[] mid;
+delete[] bot;
+for (auto i = sys.begin(); i != sys.end(); i++)
+	delete[] *i;
+}
+
+void matvec(double * A, double * x, double * y, int n, int m, bool revFlag){
+	double alpha = 1, beta = 0;
+	int one = 1;
+	if (!revFlag){
+		double * temp = new double[n];
+		dgemm_("N", "N", &n, &one, &m, &alpha, A, &n, x, &m, &beta, temp, &n);
+		load(temp, y, n);
+		delete[] temp;
+	}
+	else{
+		double * temp = new double[m];
+		dgemm_("N", "N", &one, &m, &n, &alpha, x, &one, A, &n, &beta, temp, &one);
+		load(temp, y, m);
+		delete[] temp;
+	}
 }
 
 int main(){
-	mrx A(3,3);
-	for (int i = 0; i < 3; i++)
-	for (int j = 0; j < 3; j++)
-		A.set(1, i, j);
-	A.print();
-	cout << endl << endl;
-	lanc(A);
-	/*
-	mrx B(3,1);
-	for (int i = 0; i < 3; i++)
-		B.set(1,i);
-	mrx C = A * B;
-	A.print();
-	B.print();
-	C.print();
-	C.T().print();
-	(C + B).print();
-	*/
+	double A[9] = {};
+	for (int i = 0; i < 9; i++)
+		A[i] = 1;
+	lanc(A,3,matvec);
 }
 
 
