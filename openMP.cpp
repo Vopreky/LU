@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <omp.h>
 using namespace std;
 
 extern "C"
@@ -83,24 +84,45 @@ void lanc(double * A, int n, void(*matvec) (double * A, double * x, double * y, 
 	//q = A * q + q * a;
 	int k = 1;
 	while (norma(q, n) > 0.001 && k < maxK){
+		int rank =  omp_get_thread_num();
 		mult(q, 1 / norma(q, n), q, n);
 		//q = q / norma(q);
 		sys.push_back(q);
 		q = new double[n];
 		k++;
+		
 		matvec(A, sys[k-1], workArray, n, n, true);
-		matvec(workArray, sys[k-1], workArray, 1, n, false);
+		matvec(workArray, sys[k-1], workArray, 1, n, false);	
 		a = -workArray[0];//-((sys[k-1].T() * A * sys[k-1]).get());
 		matvec(A, sys[k-1], workArray, n, n, true);
 		matvec(workArray, sys[k-2], workArray, 1, n, false);
 		b = -workArray[0];//-((sys[k-1].T() * A * sys[k-2]).get());
+		
 		aArray.push_back(a);
 		bArray.push_back(b);
+
 		matvec(A, sys[k-1], q, n, n, false);
-		mult(sys[k-1], a, workArray, n);
-		sum(q, workArray, q, n);
-		mult(sys[k-2], b, workArray, n);
-		sum(q, workArray, q, n);
+		
+		
+		#pragma omp parallel 
+		{
+			double * my_q = new double [n];
+			for (int i = 0; i < n; i++)
+				my_q[i] = 0;
+			#pragma omp for
+			for (int i = 0; i < n; i++){
+				my_q[i] = sys[k-1][i] * a + sys[k-2][i] * b;
+			}
+			#pragma omp critical
+			for (int i = 0; i < n; i++){
+				q[i] += my_q[i];
+			}
+			delete[] my_q;
+			//mult(sys[k-1], a, workArray, n);
+			//sum(q, workArray, q, n);
+			//mult(sys[k-2], b, workArray, n);
+			//sum(q, workArray, q, n);
+		}
 		//q = A * sys[k-1] + sys[k-1] * a + sys[k-2] * b;
 	}
 	cout << "k = " << k << endl;

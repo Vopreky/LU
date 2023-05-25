@@ -1,7 +1,7 @@
 #include <iostream>
-#include <mpi.h>
 #include <cmath>
 #include <vector>
+#include <mpi.h>
 using namespace std;
 
 extern "C"
@@ -40,12 +40,26 @@ double norma(double * v, int n){
 	return sqrt(a);
 }
 
-inline void sum(double * a, double * b, double * c, int n){
-	for (int i = 0; i < n; i++)
+inline void sum(double * a, double * b, double * c, int n, int rank = 0, int size = 1){
+	int unit = n / size + 1;
+	int start = rank * unit;
+	int end = start + unit;
+	if (start > n)
+		start = n;
+	if (end > n)
+		end = n;
+	for (int i = start; i < end; i++)
 		c[i] = a[i] + b[i];
 }
-inline void mult(double * a, double b, double * c, int n){
-	for (int i = 0; i < n; i++)
+inline void mult(double * a, double b, double * c, int n, int rank = 0, int size = 1){
+	int unit = n / size + 1;
+	int start = rank * unit;
+	int end = start + unit;
+	if (start > n)
+		start = n;
+	if (end > n)
+		end = n;
+	for (int i = start; i < end; i++)
 		c[i] = a[i] * b;
 }
 inline void load(double * a, double * c, int n){
@@ -64,6 +78,11 @@ inline void nullify(double * a, int n){
 void lanc(double * A, int n, void(*matvec) (double * A, double * x, double * y, int n, int m, bool revFlag), int maxK = 10){
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int size;
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	if (rank == 0)
+		cout << "size = " << size << endl;
 	double * workArray = new double[n];
 	double b;
 	vector<double*> sys;//vector<mrx> sys;
@@ -83,7 +102,6 @@ void lanc(double * A, int n, void(*matvec) (double * A, double * x, double * y, 
 	matvec(A, q, workArray, n, n, false);
 	mult(q, a, q, n);
 	sum(workArray, q, q, n);
-	//q = A * q + q * a;
 	int k = 1;
 	while (norma(q, n) > 0.001 && k < maxK){
 		mult(q, 1 / norma(q, n), q, n);
@@ -91,36 +109,61 @@ void lanc(double * A, int n, void(*matvec) (double * A, double * x, double * y, 
 		q = new double[n];
 		k++;
 		
+		//section 2
 		if (rank == 0){
 			matvec(A, sys[k-1], workArray, n, n, true);
 			matvec(workArray, sys[k-1], workArray, 1, n, false);
 			a = -workArray[0];//-((sys[k-1].T() * A * sys[k-1]).get());
 		}
+		//section 2
 
-		if (rank == 1){
+		//section 3
+		if (rank == 1 || size == 1){
 			matvec(A, sys[k-1], workArray, n, n, true);
 			matvec(workArray, sys[k-2], workArray, 1, n, false);
 			b = -workArray[0];//-((sys[k-1].T() * A * sys[k-2]).get());
 		}
-
-		if (rank == 2){
-			matvec(A, sys[k-1], q, n, n, false);
+		//section 3
+		
+		if (size > 1){
+			MPI_Bcast(&a, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+			MPI_Bcast(&b, 1, MPI_DOUBLE, 1, MPI_COMM_WORLD);
 		}
-
-		//Bcast a, b
-		MPI_Bcast(&a, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(&b, 1, MPI_DOUBLE, 1, MPI_COMM_WORLD);
 		aArray.push_back(a);
 		bArray.push_back(b);
+		matvec(A, sys[k-1], q, n, n, false);
 		
-		if (rank == 2){
-			mult(sys[k-1], a, workArray, n);
-			sum(q, workArray, q, n);
-			mult(sys[k-2], b, workArray, n);
-			sum(q, workArray, q, n);
+		//section 4
+		/*
+		mult(sys[k-1], a, workArray, n);
+		sum(q, workArray, q, n);
+		mult(sys[k-2], b, workArray, n);
+		sum(q, workArray, q, n);
+		*/
+		mult(sys[k-1], a, workArray, n, rank, size);
+		sum(q, workArray, q, n, rank, size);
+		mult(sys[k-2], b, workArray, n, rank, size);
+		sum(q, workArray, q, n, rank, size);
+		for (int i = 0; i < size; i++){
+			int unit = n / size + 1;
+			int start = i * unit;
+			int end = start + unit;
+			if (end > n)
+				end = n;
+			if (start > n)
+				start = n;
+			if (end - start + 1 > 0)
+				MPI_Bcast(q + start, end - start, MPI_DOUBLE, i, MPI_COMM_WORLD);
 		}
-		//Bcast q
-		MPI_Bcast(q, n, MPI_DOUBLE, 2, MPI_COMM_WORLD);
+		if (rank == 0){
+			cout << "q = (";
+			for (int i = 0; i < n; i++)
+				if (i != n-1)
+					cout << q[i] << ", ";
+				else
+					cout << q[i] << ")" << endl;
+		}
+		//section 4
 	}
 	if (rank == 0){
 		cout << "k = " << k << endl;
@@ -159,11 +202,12 @@ void lanc(double * A, int n, void(*matvec) (double * A, double * x, double * y, 
 		for (int i = 0; i < k; i++){
 			cout << mid[i] << endl;
 		}
-		delete[] mid;
-		delete[] bot;
-		delete[] arr1;
-		delete[] arr2;
+	delete[] arr1;
+	delete[] arr2;
+	delete[] mid;
+	delete[] bot;
 	}
+
 delete[] q;
 delete[] workArray;
 for (auto i = sys.begin(); i != sys.end(); i++)
@@ -188,13 +232,14 @@ void matvec(double * A, double * x, double * y, int n, int m, bool revFlag){
 }
 
 int main(int argc, char ** argv){
-	
 	int info;
 	MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &info);
-	double A[9] = {};
-	for (int i = 0; i < 9; i++)
+	int n = 5000;
+	double * A = new double[n*n];
+	for (int i = 0; i < n*n; i++)
 		A[i] = 1;
-	lanc(A,3,matvec);
+	lanc(A,n,matvec);
+	delete[] A;
 	MPI_Finalize();
 }
 
