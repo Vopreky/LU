@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <omp.h>
 #include <chrono>
 using namespace std;
 using namespace std::chrono;
@@ -22,19 +21,16 @@ extern void dstevd_(const char * jobz,
 
 template<class T>
 void vecLoad(T * vec, T * res, int size){
-	#pragma omp parallel for
 	for (int i = 0; i < size; i++)
 		res[i] = vec[i];
 }
 template<class T>
 void vecMult(T * vec, T a, T * res, int size){
-	#pragma omp parallel for
 	for (int i = 0; i < size; i++)
 		res[i] = vec[i] * a;
 }
 template<class T>
 void vecSum(T * v1, T * v2, T * res, int size){
-	#pragma omp parallel for
 	for (int i = 0; i < size; i++)
 		res[i] = v1[i] + v2[i];
 }
@@ -48,7 +44,6 @@ T dotprod(T * v1, T * v2, int size){
 }
 template<class T>
 void matvec(T * mat, T * vec, T * res, int size){
-	#pragma omp parallel for
 	for (int i = 0; i < size; i++){
 		res[i] = 0;
 		for (int j = 0; j < size; j++){
